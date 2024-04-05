@@ -1,12 +1,6 @@
 #ifndef ATTR_H
 #define ATTR_H
 
-/**
- * The maximum line length for a gitattributes file. If the line exceeds this
- * length we will ignore it.
- */
-#define ATTR_MAX_LINE_LENGTH 2048
-
 struct index_state;
 
 /* An attribute is a pointer to this opaque structure */
