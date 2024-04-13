@@ -450,12 +450,7 @@ static inline int is_path_owned_by_current_uid(const char *path)
 
 	euid = geteuid();
 	if (euid == ROOT_UID)
-	{
-		if (st.st_uid == ROOT_UID)
-			return 1;
-		else
-			extract_id_from_env("SUDO_UID", &euid);
-	}
+		extract_id_from_env("SUDO_UID", &euid);
 
 	return st.st_uid == euid;
 }
