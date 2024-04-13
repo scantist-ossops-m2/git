@@ -283,8 +283,6 @@ int mingw_rmdir(const char *pathname)
 	       ask_yes_no_if_possible("Deletion of directory '%s' failed. "
 			"Should I try again?", pathname))
 	       ret = _wrmdir(wpathname);
-	if (!ret)
-		invalidate_lstat_cache();
 	return ret;
 }
 
@@ -906,7 +904,7 @@ static const char *quote_arg(const char *arg)
 				p++;
 				len++;
 			}
-			if (*p == '"')
+			if (*p == '"' || !*p)
 				n += count*2 + 1;
 			continue;
 		}
@@ -928,16 +926,19 @@ static const char *quote_arg(const char *arg)
 				count++;
 				*d++ = *arg++;
 			}
-			if (*arg == '"') {
+			if (*arg == '"' || !*arg) {
 				while (count-- > 0)
 					*d++ = '\\';
+				/* don't escape the surrounding end quote */
+				if (!*arg)
+					break;
 				*d++ = '\\';
 			}
 		}
 		*d++ = *arg++;
 	}
 	*d++ = '"';
-	*d++ = 0;
+	*d++ = '\0';
 	return q;
 }
 
