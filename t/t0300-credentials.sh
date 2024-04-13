@@ -321,6 +321,12 @@ test_expect_success 'url parser rejects embedded newlines' '
 	EOF
 '
 
+test_expect_success 'url parser rejects embedded newlines' '
+	test_must_fail git credential fill <<-\EOF
+	url=https://one.example.com?%0ahost=two.example.com/
+	EOF
+'
+
 test_expect_success 'pull username from config' '
 	test_config credential.https://example.com.username foo &&
 	check fill <<-\EOF
