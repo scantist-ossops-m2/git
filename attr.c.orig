@@ -289,7 +289,7 @@ static const char *parse_attr(const char *src, int lineno, const char *cp,
 			      struct attr_state *e)
 {
 	const char *ep, *equals;
-	int len;
+	size_t len;
 
 	ep = cp + strcspn(cp, blank);
 	equals = strchr(cp, '=');
@@ -333,7 +333,7 @@ static const char *parse_attr(const char *src, int lineno, const char *cp,
 static struct match_attr *parse_attr_line(const char *line, const char *src,
 					  int lineno, unsigned flags)
 {
-	int namelen;
+	size_t namelen;
 	int num_attr, i;
 	const char *cp, *name, *states;
 	struct match_attr *res = NULL;
