@@ -310,6 +310,12 @@ EOF
 	test_cmp expected actual
 '
 
+test_expect_success 'log --pretty with space stealing' '
+	printf mm0 >expect &&
+	git log -1 --pretty="format:mm%>>|(1)%x30" >actual &&
+	test_cmp expect actual
+'
+
 test_expect_success EXPENSIVE,SIZE_T_IS_64BIT 'log --pretty with huge commit message' '
 	# We only assert that this command does not crash. This needs to be
 	# executed with the address sanitizer to demonstrate failure.
