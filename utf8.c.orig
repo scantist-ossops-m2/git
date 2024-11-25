@@ -274,15 +274,11 @@ int utf8_strnwidth(const char *string, int len, int skip_ansi)
 	if (len == -1)
 		len = strlen(string);
 	while (string && string < orig + len) {
-		int glyph_width, skip;
-
+		int skip;
 		while (skip_ansi &&
 		       (skip = display_mode_esc_sequence_len(string)) != 0)
 			string += skip;
-
-		glyph_width = utf8_width(&string, NULL);
-		if (glyph_width > 0)
-			width += glyph_width;
+		width += utf8_width(&string, NULL);
 	}
 	return string ? width : len;
 }
