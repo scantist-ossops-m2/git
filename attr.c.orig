@@ -135,7 +135,7 @@ static const char *parse_attr(const char *src, int lineno, const char *cp,
 			      int *num_attr, struct match_attr *res)
 {
 	const char *ep, *equals;
-	size_t len;
+	int len;
 
 	ep = cp + strcspn(cp, blank);
 	equals = strchr(cp, '=');
