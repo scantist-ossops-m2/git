@@ -825,6 +825,7 @@ int pipe(int filedes[2])
 	return 0;
 }
 
+#ifndef __MINGW64__
 struct tm *gmtime_r(const time_t *timep, struct tm *result)
 {
 	/* gmtime() in MSVCRT.DLL is thread-safe, but not reentrant */
@@ -838,6 +839,7 @@ struct tm *localtime_r(const time_t *timep, struct tm *result)
 	memcpy(result, localtime(timep), sizeof(struct tm));
 	return result;
 }
+#endif
 
 char *mingw_getcwd(char *pointer, int len)
 {
