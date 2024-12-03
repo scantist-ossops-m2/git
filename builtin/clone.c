@@ -424,13 +424,25 @@ static void copy_or_link_directory(struct strbuf *src, struct strbuf *dest,
 	int src_len, dest_len;
 	struct dir_iterator *iter;
 	int iter_status;
-	unsigned int flags;
 	struct strbuf realpath = STRBUF_INIT;
+
+	/*
+	 * Refuse copying directories by default which aren't owned by us. The
+	 * code that performs either the copying or hardlinking is not prepared
+	 * to handle various edge cases where an adversary may for example
+	 * racily swap out files for symlinks. This can cause us to
+	 * inadvertently use the wrong source file.
+	 *
+	 * Furthermore, even if we were prepared to handle such races safely,
+	 * creating hardlinks across user boundaries is an inherently unsafe
+	 * operation as the hardlinked files can be rewritten at will by the
+	 * potentially-untrusted user. We thus refuse to do so by default.
+	 */
+	die_upon_dubious_ownership(NULL, NULL, src_repo);
 
 	mkdir_if_missing(dest->buf, 0777);
 
-	flags = DIR_ITERATOR_PEDANTIC | DIR_ITERATOR_FOLLOW_SYMLINKS;
-	iter = dir_iterator_begin(src->buf, flags);
+	iter = dir_iterator_begin(src->buf, DIR_ITERATOR_PEDANTIC);
 
 	if (!iter)
 		die_errno(_("failed to start iterator over '%s'"), src->buf);
@@ -445,6 +457,10 @@ static void copy_or_link_directory(struct strbuf *src, struct strbuf *dest,
 		strbuf_addstr(src, iter->relative_path);
 		strbuf_setlen(dest, dest_len);
 		strbuf_addstr(dest, iter->relative_path);
+
+		if (S_ISLNK(iter->st.st_mode))
+			die(_("symlink '%s' exists, refusing to clone with --local"),
+			    iter->relative_path);
 
 		if (S_ISDIR(iter->st.st_mode)) {
 			mkdir_if_missing(dest->buf, 0777);
@@ -1218,10 +1234,6 @@ int cmd_clone(int argc, const char **argv, const char *prefix)
 	refspec_appendf(&remote->fetch, "+%s*:%s*", src_ref_prefix,
 			branch_top.buf);
 
-	transport = transport_get(remote, remote->url[0]);
-	transport_set_verbosity(transport, option_verbosity, option_progress);
-	transport->family = family;
-
 	path = get_repo_path(remote->url[0], &is_bundle);
 	is_local = option_local != 0 && path && !is_bundle;
 	if (is_local) {
@@ -1243,6 +1255,10 @@ int cmd_clone(int argc, const char **argv, const char *prefix)
 	}
 	if (option_local > 0 && !is_local)
 		warning(_("--local is ignored"));
+
+	transport = transport_get(remote, path ? path : remote->url[0]);
+	transport_set_verbosity(transport, option_verbosity, option_progress);
+	transport->family = family;
 	transport->cloning = 1;
 
 	transport_set_option(transport, TRANS_OPT_KEEP, "yes");
