@@ -127,7 +127,9 @@
 /* Approximation of the length of the decimal representation of this type. */
 #define decimal_length(x)	((int)(sizeof(x) * 2.56 + 0.5) + 1)
 
-#if defined(__sun__)
+#ifdef __MINGW64__
+#define _POSIX_C_SOURCE 1
+#elif defined(__sun__)
  /*
   * On Solaris, when _XOPEN_EXTENDED is set, its header file
   * forces the programs to be XPG4v2, defeating any _XOPEN_SOURCE
@@ -396,6 +398,74 @@ static inline int git_offset_1st_component(const char *path)
 
 #ifndef is_valid_path
 #define is_valid_path(path) 1
+#endif
+
+#ifndef is_path_owned_by_current_user
+
+#ifdef __TANDEM
+#define ROOT_UID 65535
+#else
+#define ROOT_UID 0
+#endif
+
+/*
+ * Do not use this function when
+ * (1) geteuid() did not say we are running as 'root', or
+ * (2) using this function will compromise the system.
+ *
+ * PORTABILITY WARNING:
+ * This code assumes uid_t is unsigned because that is what sudo does.
+ * If your uid_t type is signed and all your ids are positive then it
+ * should all work fine.
+ * If your version of sudo uses negative values for uid_t or it is
+ * buggy and return an overflowed value in SUDO_UID, then git might
+ * fail to grant access to your repository properly or even mistakenly
+ * grant access to someone else.
+ * In the unlikely scenario this happened to you, and that is how you
+ * got to this message, we would like to know about it; so sent us an
+ * email to git@vger.kernel.org indicating which platform you are
+ * using and which version of sudo, so we can improve this logic and
+ * maybe provide you with a patch that would prevent this issue again
+ * in the future.
+ */
+static inline void extract_id_from_env(const char *env, uid_t *id)
+{
+	const char *real_uid = getenv(env);
+
+	/* discard anything empty to avoid a more complex check below */
+	if (real_uid && *real_uid) {
+		char *endptr = NULL;
+		unsigned long env_id;
+
+		errno = 0;
+		/* silent overflow errors could trigger a bug here */
+		env_id = strtoul(real_uid, &endptr, 10);
+		if (!*endptr && !errno)
+			*id = env_id;
+	}
+}
+
+static inline int is_path_owned_by_current_uid(const char *path)
+{
+	struct stat st;
+	uid_t euid;
+
+	if (lstat(path, &st))
+		return 0;
+
+	euid = geteuid();
+	if (euid == ROOT_UID)
+	{
+		if (st.st_uid == ROOT_UID)
+			return 1;
+		else
+			extract_id_from_env("SUDO_UID", &euid);
+	}
+
+	return st.st_uid == euid;
+}
+
+#define is_path_owned_by_current_user is_path_owned_by_current_uid
 #endif
 
 #ifndef find_last_dir_sep
@@ -860,6 +930,14 @@ static inline size_t st_sub(size_t a, size_t b)
 		die("size_t underflow: %"PRIuMAX" - %"PRIuMAX,
 		    (uintmax_t)a, (uintmax_t)b);
 	return a - b;
+}
+
+static inline int cast_size_t_to_int(size_t a)
+{
+	if (a > INT_MAX)
+		die("number too large to represent as int on this platform: %"PRIuMAX,
+		    (uintmax_t)a);
+	return (int)a;
 }
 
 #ifdef HAVE_ALLOCA_H
