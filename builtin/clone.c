@@ -418,6 +418,20 @@ static void copy_or_link_directory(struct strbuf *src, struct strbuf *dest,
 	int iter_status;
 	unsigned int flags;
 
+	/*
+	 * Refuse copying directories by default which aren't owned by us. The
+	 * code that performs either the copying or hardlinking is not prepared
+	 * to handle various edge cases where an adversary may for example
+	 * racily swap out files for symlinks. This can cause us to
+	 * inadvertently use the wrong source file.
+	 *
+	 * Furthermore, even if we were prepared to handle such races safely,
+	 * creating hardlinks across user boundaries is an inherently unsafe
+	 * operation as the hardlinked files can be rewritten at will by the
+	 * potentially-untrusted user. We thus refuse to do so by default.
+	 */
+	die_upon_dubious_ownership(NULL, NULL, src_repo);
+
 	mkdir_if_missing(dest->buf, 0777);
 
 	flags = DIR_ITERATOR_PEDANTIC | DIR_ITERATOR_FOLLOW_SYMLINKS;
@@ -1112,10 +1126,6 @@ int cmd_clone(int argc, const char **argv, const char *prefix)
 		    branch_top.buf);
 	refspec_append(&remote->fetch, default_refspec.buf);
 
-	transport = transport_get(remote, remote->url[0]);
-	transport_set_verbosity(transport, option_verbosity, option_progress);
-	transport->family = family;
-
 	path = get_repo_path(remote->url[0], &is_bundle);
 	is_local = option_local != 0 && path && !is_bundle;
 	if (is_local) {
@@ -1135,6 +1145,10 @@ int cmd_clone(int argc, const char **argv, const char *prefix)
 	}
 	if (option_local > 0 && !is_local)
 		warning(_("--local is ignored"));
+
+	transport = transport_get(remote, path ? path : remote->url[0]);
+	transport_set_verbosity(transport, option_verbosity, option_progress);
+	transport->family = family;
 	transport->cloning = 1;
 
 	transport_set_option(transport, TRANS_OPT_KEEP, "yes");
