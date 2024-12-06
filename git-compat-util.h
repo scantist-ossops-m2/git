@@ -127,7 +127,9 @@
 /* Approximation of the length of the decimal representation of this type. */
 #define decimal_length(x)	((int)(sizeof(x) * 2.56 + 0.5) + 1)
 
-#if defined(__sun__)
+#ifdef __MINGW64__
+#define _POSIX_C_SOURCE 1
+#elif defined(__sun__)
  /*
   * On Solaris, when _XOPEN_EXTENDED is set, its header file
   * forces the programs to be XPG4v2, defeating any _XOPEN_SOURCE
@@ -847,6 +849,14 @@ static inline size_t st_sub(size_t a, size_t b)
 		die("size_t underflow: %"PRIuMAX" - %"PRIuMAX,
 		    (uintmax_t)a, (uintmax_t)b);
 	return a - b;
+}
+
+static inline int cast_size_t_to_int(size_t a)
+{
+	if (a > INT_MAX)
+		die("number too large to represent as int on this platform: %"PRIuMAX,
+		    (uintmax_t)a);
+	return (int)a;
 }
 
 #ifdef HAVE_ALLOCA_H
