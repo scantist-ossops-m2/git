@@ -430,6 +430,18 @@ static inline int git_offset_1st_component(const char *path)
 #define is_valid_path(path) 1
 #endif
 
+#ifndef is_path_owned_by_current_user
+static inline int is_path_owned_by_current_uid(const char *path)
+{
+	struct stat st;
+	if (lstat(path, &st))
+		return 0;
+	return st.st_uid == geteuid();
+}
+
+#define is_path_owned_by_current_user is_path_owned_by_current_uid
+#endif
+
 #ifndef find_last_dir_sep
 static inline char *git_find_last_dir_sep(const char *path)
 {
@@ -911,6 +923,14 @@ static inline unsigned long cast_size_t_to_ulong(size_t a)
 		    PRIuMAX" is cut off to %lu",
 		    (uintmax_t)a, (unsigned long)a);
 	return (unsigned long)a;
+}
+
+static inline int cast_size_t_to_int(size_t a)
+{
+	if (a > INT_MAX)
+		die("number too large to represent as int on this platform: %"PRIuMAX,
+		    (uintmax_t)a);
+	return (int)a;
 }
 
 #ifdef HAVE_ALLOCA_H
