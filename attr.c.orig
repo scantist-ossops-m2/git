@@ -24,7 +24,7 @@ static const char git_attr__unknown[] = "(builtin)unknown";
 #define ATTR__UNKNOWN git_attr__unknown
 
 struct git_attr {
-	unsigned int attr_nr; /* unique attribute number */
+	int attr_nr; /* unique attribute number */
 	char name[FLEX_ARRAY]; /* attribute name */
 };
 
@@ -222,8 +222,8 @@ static const struct git_attr *git_attr_internal(const char *name, size_t namelen
 		a->attr_nr = hashmap_get_size(&g_attr_hashmap.map);
 
 		attr_hashmap_add(&g_attr_hashmap, a->name, namelen, a);
-		if (a->attr_nr != hashmap_get_size(&g_attr_hashmap.map) - 1)
-			die(_("unable to add additional attribute"));
+		assert(a->attr_nr ==
+		       (hashmap_get_size(&g_attr_hashmap.map) - 1));
 	}
 
 	hashmap_unlock(&g_attr_hashmap);
@@ -380,9 +380,10 @@ static struct match_attr *parse_attr_line(const char *line, const char *src,
 			goto fail_return;
 	}
 
-	res = xcalloc(1, st_add3(sizeof(*res),
-				 st_mult(sizeof(struct attr_state), num_attr),
-				 is_macro ? 0 : namelen + 1));
+	res = xcalloc(1,
+		      sizeof(*res) +
+		      sizeof(struct attr_state) * num_attr +
+		      (is_macro ? 0 : namelen + 1));
 	if (is_macro) {
 		res->u.attr = git_attr_internal(name, namelen);
 	} else {
@@ -1058,7 +1059,7 @@ static void determine_macros(struct all_attrs_item *all_attrs,
 		for (i = stack->num_matches; i > 0; i--) {
 			const struct match_attr *ma = stack->attrs[i - 1];
 			if (ma->is_macro) {
-				unsigned int n = ma->u.attr->attr_nr;
+				int n = ma->u.attr->attr_nr;
 				if (!all_attrs[n].macro) {
 					all_attrs[n].macro = ma;
 				}
@@ -1110,7 +1111,7 @@ void git_check_attr(struct index_state *istate,
 	collect_some_attrs(istate, path, check);
 
 	for (i = 0; i < check->nr; i++) {
-		unsigned int n = check->items[i].attr->attr_nr;
+		size_t n = check->items[i].attr->attr_nr;
 		const char *value = check->all_attrs[n].value;
 		if (value == ATTR__UNKNOWN)
 			value = ATTR__UNSET;
